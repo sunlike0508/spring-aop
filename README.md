@@ -13,7 +13,7 @@
 
 그러니까 부가 기능은 이름 그대로 핵심 기능을 보조하기 위해 존재한다.
 
-
+<img width="695" alt="Screenshot 2024-10-15 at 23 10 53" src="https://github.com/user-attachments/assets/cfc5cebf-c527-4ecc-8a2e-b83d87c4a415">
 
 주문 로직을 실행하기 직전에 로그 추적 기능을 사용해야 하면, 핵심 기능인 주문 로직과 부가 기능인 로그 추적 로직이 하나의 객체 안에 섞여 들어가게 된다. 
 
@@ -21,13 +21,15 @@
 
 이제 주문 서비스를 실행하면 핵심 기능인 주문 로직과 부가 기능인 로그 추적 로직이 함께 실행된다.
 
-
+<img width="705" alt="Screenshot 2024-10-15 at 23 11 13" src="https://github.com/user-attachments/assets/5600979b-ec12-406a-8095-66858b6704cc">
 
 보통 부가 기능은 여러 클래스에 걸쳐서 함께 사용된다. 예를 들어서 모든 애플리케이션 호출을 로깅 해야 하는 요구사항을 생각해보자. 
 
 이러한 부가 기능은 횡단 관심사(cross-cutting concerns)가 된다. 
 
 쉽게 이야기해서 하나의 부가 기능이 여러 곳에 동일하게 사용된다는 뜻이다.
+
+<img width="696" alt="Screenshot 2024-10-15 at 23 11 26" src="https://github.com/user-attachments/assets/efe4da99-aeb1-4cb4-9c74-0471e1586b12">
 
 ### 부가 기능 적용 문제
 
