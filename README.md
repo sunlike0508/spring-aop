@@ -693,11 +693,10 @@ public void doThrowing(JoinPoint joinPoint, Exception ex) {
 * `proceed()` 를 통해 대상을 실행한다. 
 * `proceed()` 를 여러번 실행할 수도 있음(재시도)
 
-
-
-
+<img width="702" alt="Screenshot 2024-10-17 at 23 32 46" src="https://github.com/user-attachments/assets/9190fa99-b8bb-4653-8038-1b157a9ce39e">
 
 **순서**
+
 스프링은 5.2.7 버전부터 동일한 `@Aspect` 안에서 동일한 조인포인트의 우선순위를 정했다.
 
 실행 순서: `@Around` , `@Before` , `@After` , `@AfterReturning` , `@AfterThrowing`
