@@ -763,13 +763,314 @@ public void doBefore(JoinPoint joinPoint) {
 
 다른 개발자도 이 코드를 보고 고민해야 하는 범위가 줄어들고 코드의 의도도 파악하기 쉽다.
 
+# 스프링 AOP - 포인트 컷
 
+## 포인트컷 지시자
 
+지금부터 포인트컷 표현식을 포함한 포인트컷에 대해서 자세히 알아보자.
 
+애스펙트J는 포인트컷을 편리하게 표현하기 위한 특별한 표현식을 제공한다.
 
+예) `@Pointcut("execution(* hello.aop.order..*(..))")`
 
+포인트컷 표현식은 AspectJ pointcut expression 즉 애스펙트J가 제공하는 포인트컷 표현식을 줄여서 말하는 것이다.
 
+### 포인트컷 지시자
 
+* 포인트컷 표현식은 `execution` 같은 포인트컷 지시자(Pointcut Designator)로 시작한다. 줄여서 PCD라 한다.
+
+* 포인트컷 지시자의 종류
+  * `execution` : 메소드 실행 조인 포인트를 매칭한다. 스프링 AOP에서 가장 많이 사용하고, 기능도 복잡하다.
+  * `within` : 특정 타입 내의 조인 포인트를 매칭한다.
+  * `args` : 인자가 주어진 타입의 인스턴스인 조인 포인트
+  * `this` : 스프링 빈 객체(스프링 AOP 프록시)를 대상으로 하는 조인 포인트
+  * `target` : Target 객체(스프링 AOP 프록시가 가리키는 실제 대상)를 대상으로 하는 조인 포인트
+  * `@target` : 실행 객체의 클래스에 주어진 타입의 애노테이션이 있는 조인 포인트 
+  * `@within` : 주어진 애노테이션이 있는 타입 내 조인 포인트
+  * `@annotation` : 메서드가 주어진 애노테이션을 가지고 있는 조인 포인트를 매칭
+  * `@args` : 전달된 실제 인수의 런타임 타입이 주어진 타입의 애노테이션을 갖는 조인 포인트 
+  * `bean` : 스프링 전용 포인트컷 지시자, 빈의 이름으로 포인트컷을 지정한다.
+
+포인트컷 지시자가 무엇을 뜻하는지, 사실 글로만 읽어보면 이해하기 쉽지 않다. 
+
+예제를 통해서 하나씩 이해해보자. `execution` 은 가장 많이 사용하고, 나머지는 자주 사용하지 않는다. 
+
+따라서 `execution` 을 중점적으로 이해하자.
+
+## Execution
+
+**execution 문법** 
+```
+execution(modifiers-pattern? ret-type-pattern declaring-type-pattern?name-pattern(param-pattern) throws-pattern?)
+
+execution(접근제어자? 반환타입 선언타입?메서드이름(파라미터) 예외?) 
+```
+
+메소드 실행 조인 포인트를 매칭한다. 
+
+?는 생략할 수 있다.
+
+`*` 같은 패턴을 지정할 수 있다.
+
+**매칭 조건**
+
+접근제어자?: `public`
+
+반환타입: `String`
+
+선언타입?: `hello.aop.member.MemberServiceImpl` 
+
+메서드이름: `hello`
+
+파라미터: `(String)`
+
+예외?: 생략
+
+**가장 많이 생략한 포인트컷** 
+
+```java
+@Test
+void allMatch() {
+    pointcut.setExpression("execution(* *(..))");
+    assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+}
+```
+
+가장 많이 생략한 포인트컷이다.
+
+**매칭 조건**
+
+* 접근제어자?: 생략
+* 반환타입: `*`
+* 선언타입?: 생략 
+* 메서드이름: `*` 
+* 파라미터: `(..)` 
+* 예외?: 없음
+* `*` 은 아무 값이 들어와도 된다는 뜻이다.
+* 파라미터에서 `..` 은 파라미터의 타입과 파라미터 수가 상관없다는 뜻이다. ( `0..*` ) 파라미터는 뒤에 자세히 정리하겠다.
+  
+
+**hello.aop.member.*(1).*(2)**
+* (1): 타입
+* (2): 메서드 이름
+
+**패키지에서 `.` , `..` 의 차이를 이해해야 한다.**
+* `.` : 정확하게 해당 위치의 패키지
+* `..` : 해당 위치의 패키지와 그 하위 패키지도 포함
+
+**타입 매칭 - 부모 타입 허용** 
+
+```java
+@Test
+void typeExactMatch() {
+  pointcut.setExpression("execution(* hello.aop.member.MemberServiceImpl.*(..))");
+  assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+}
+@Test
+void typeMatchSuperType() {
+  pointcut.setExpression("execution(* hello.aop.member.MemberService.*(..))");
+  assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+}
+```
+
+`typeExactMatch()` 는 타입 정보가 정확하게 일치하기 때문에 매칭된다.
+
+`typeMatchSuperType()` 을 주의해서 보아야 한다.
+
+`execution` 에서는 `MemberService` 처럼 부모 타입을 선언해도 그 자식 타입은 매칭된다. 
+
+다형성에서 `부모타입 = 자식타입` 이 할당 가능하다는 점을 떠올려보면 된다.
+
+**타입 매칭 - 부모 타입에 있는 메서드만 허용** 
+
+```java
+@Test
+void typeExactSuperMatch2() throws NoSuchMethodException {
+    pointcut.setExpression("execution(* hello.aop.member.MemberServiceImpl.*(..))");
+
+    Method internalMethod = MemberServiceImpl.class.getMethod("internal", String.class);
+
+    assertThat(pointcut.matches(internalMethod, MemberService.class)).isTrue();
+}
+
+@Test
+void typeExactSuperMatch3() throws NoSuchMethodException {
+    pointcut.setExpression("execution(* hello.aop.member.MemberService.*(..))");
+
+    Method internalMethod = MemberServiceImpl.class.getMethod("internal", String.class);
+
+    assertThat(pointcut.matches(internalMethod, MemberService.class)).isFalse();
+}
+```
+
+`typeMatchInternal()` 의 경우 `MemberServiceImpl` 를 표현식에 선언했기 때문에 그 안에 있는 `internal(String)` 메서드도 매칭 대상이 된다.
+
+`typeMatchNoSuperTypeMethodFalse()` 를 주의해서 보아야 한다.
+
+이 경우 표현식에 부모 타입인 `MemberService` 를 선언했다. 
+
+그런데 자식 타입인 `MemberServiceImpl` 의 `internal(String)` 메서드를 매칭하려 한다. 
+
+이 경우 매칭에 실패한다. 
+
+`MemberService` 에는 `internal(String)` 메서드가 없다!
+
+부모 타입을 표현식에 선언한 경우 부모 타입에서 선언한 메서드가 자식 타입에 있어야 매칭에 성공한다. 
+
+그래서 부모 타입에 있는 `hello(String)` 메서드는 매칭에 성공하지만, 부모 타입에 없는 `internal(String)` 는 매칭에 실 패한다.
+
+**파라미터 매칭**
+
+```java
+@Test
+void argsMatch() {
+    pointcut.setExpression("execution(* *(..))");
+    assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+}
+
+@Test
+void argsMatch2() {
+    pointcut.setExpression("execution(* *(String))");
+    assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+}
+
+@Test
+void argsMatch3() {
+    pointcut.setExpression("execution(* *())");
+    assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isFalse();
+}
+
+@Test
+void argsMatch4() {
+    pointcut.setExpression("execution(* *(*))");
+    assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+}
+
+@Test
+void argsMatch5() {
+    pointcut.setExpression("execution(* *(String, ..))");
+    assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+}
+
+@Test
+void argsMatch6() {
+    pointcut.setExpression("execution(* *(String, *))");
+    assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isFalse();
+}
+```
+
+**execution 파라미터 매칭 규칙은 다음과 같다.**
+
+`(String)` : 정확하게 String 타입 파라미터
+
+`()` : 파라미터가 없어야 한다.
+
+`(*)` : 정확히 하나의 파라미터, 단 모든 타입을 허용한다.
+
+`(*, *)` : 정확히 두 개의 파라미터, 단 모든 타입을 허용한다.
+
+`(..)` : 숫자와 무관하게 모든 파라미터, 모든 타입을 허용한다. 참고로 파라미터가 없어도 된다. `0..*` 로 이해하면 된다.
+
+`(String, ..)` : String 타입으로 시작해야 한다. 숫자와 무관하게 모든 파라미터, 모든 타입을 허용한다.
+
+예) `(String)` , `(String, Xxx)` , `(String, Xxx, Xxx)` 허용
+
+## within
+
+```java
+@Test
+void withinExact() {
+    pointcut.setExpression("within(hello.aop.member.MemberServiceImpl)");
+
+    assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+}
+@Test
+void withinStar() {
+    pointcut.setExpression("within(hello.aop.member.*Service*)");
+
+    assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+}
+
+@Test
+void withinSubPackage() {
+    pointcut.setExpression("within(hello.aop..*)");
+
+    assertThat(pointcut.matches(helloMethod, MemberServiceImpl.class)).isTrue();
+}
+```
+
+`within` 지시자는 특정 타입 내의 조인 포인트들로 매칭을 제한한다. 
+
+쉽게 이야기해서 해당 타입이 매칭되면 그 안의 메서드(조인 포인트)들이 자동으로 매칭된다.
+
+문법은 단순한데 `execution` 에서 타입 부분만 사용한다고 보면 된다.
+
+**주의**
+
+```java
+@Test
+void withinSubPackage2() {
+    pointcut.setExpression("within(hello.aop.member.MemberService)");
+
+    assertThat(pointcut.matches(helloMethod, MemberService.class)).isFalse();
+}
+
+@Test
+void withinSubPackage3() {
+    pointcut.setExpression("execution(* hello.aop.member.MemberService.*(..)))");
+
+    assertThat(pointcut.matches(helloMethod, MemberService.class)).isTrue();
+}
+```
+
+그런데 `within` 사용시 주의해야 할 점이 있다. 
+
+표현식에 부모 타입을 지정하면 안된다는 점이다. 
+
+정확하게 타입이 맞 아야 한다. 이 부분에서 `execution` 과 차이가 난다.
+
+## args
+
+`args` : 인자가 주어진 타입의 인스턴스인 조인 포인트로 매칭 
+
+기본 문법은 `execution` 의 `args` 부분과 같다.
+
+**execution과 args의 차이점**
+
+`execution` 은 파라미터 타입이 정확하게 매칭되어야 한다. 
+
+`execution` 은 클래스에 선언된 정보를 기반으로 판단한다.
+
+`args` 는 부모 타입을 허용한다. 
+
+`args` 는 실제 넘어온 파라미터 객체 인스턴스를 보고 판단한다.
+
+`args` 지시자는 단독으로 사용되기 보다는 뒤에서 설명할 파라미터 바인딩에서 주로 사용된다.
+
+## @target, @within
+
+**정의**
+
+`@target` : 실행 객체의 클래스에 주어진 타입의 애노테이션이 있는 조인 포인트 `@within` : 주어진 애노테이션이 있는 타입 내 조인 포인트
+
+**설명**
+
+`@target` , `@within` 은 다음과 같이 타입에 있는 애노테이션으로 AOP 적용 여부를 판단한다.
+
+`@target(hello.aop.member.annotation.ClassAop)` `@within(hello.aop.member.annotation.ClassAop)`
+
+```java
+@ClassAop
+class Target{}
+```
+
+**@target vs @within**
+
+`@target` 은 인스턴스의 모든 메서드를 조인 포인트로 적용한다. 
+
+`@within` 은 해당 타입 내에 있는 메서드만 조인 포인트로 적용한다.
+
+쉽게 이야기해서 `@target` 은 부모 클래스의 메서드까지 어드바이스를 다 적용하고, `@within` 은 자기 자신의 클래스 에 정의된 메서드에만 어드바이스를 적용한다.
 
 
 
