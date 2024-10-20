@@ -1074,6 +1074,188 @@ class Target{}
 
 <img width="682" alt="Screenshot 2024-10-20 at 15 30 34" src="https://github.com/user-attachments/assets/2ea204da-e4bc-442b-b281-00a6bf7f10ec">
 
+**주의**
+
+다음 포인트컷 지시자는 단독으로 사용하면 안된다. `args, @args, @target`
+
+스프링 컨테이너가 프록시를 생성하는 시점은 스프링 컨테이너가 만들어지는 애플리케이션 로딩 시점이다. 
+
+이때 final 같은 빈들은 프록시를 생성하지 않는다.
+
+포인트컷 지시자(`args` , `@args` , `@target`)는 애플리케이션이 로딩 -> 실행 후 실제 객체 인스턴스가 생성이 실행될 때 프록시가 있어야 어드바이스 적용 여부를 확인할 수 있다.
+
+그런데 스프링은 포인트컷 지시자(`args` , `@args` , `@target`)가 있으면 모든 빈에 AOP를 적용하려고 시도한다. (왜냐하면 범위를 제한하지 않았으니까)
+
+그러나 final이 붙은 빈에는 프록시가 없기 때문에 오류가 발생한다. 
+
+(프록시의 특징, final이 붙은 클래스나 메소드에는 프록시를 생성하지 않는다. 프록시는 기본적으로 상속을 통해서 생성되는데 final이 붙으면 상속이 불가능하므로)
+
+그래서 스프링에서는 애플리케이션 로딩 시점에 단독으로 사용되는 포인트컷 지시자에 에러를 발생시킨다.
+
+따라서 이러한 표현식은 최대한 프록시 적용 대상을 축소하는 표현식과 함께 사용해야 한다.
+
+## @annotation, @args @annotation
+
+
+###@annotation
+
+**정의**
+
+`@annotation` : 메서드가 주어진 애노테이션을 가지고 있는 조인 포인트를 매칭
+
+### @args
+
+**정의**
+`@args` : 전달된 실제 인수의 런타임 타입이 주어진 타입의 애노테이션을 갖는 조인 포인트
+
+**설명**
+
+전달된 인수의 런타임 타입에 `@Check` 애노테이션이 있는 경우에 매칭한다.
+
+`@args(test.Check)`
+
+## bean
+
+**정의**
+
+`bean` : 스프링 전용 포인트컷 지시자, 빈의 이름으로 지정한다.
+
+**설명**
+
+스프링 빈의 이름으로 AOP 적용 여부를 지정한다. 
+
+이것은 스프링에서만 사용할 수 있는 특별한 지시자이다. 
+
+`bean(orderService) || bean(*Repository)`
+
+`*` 과 같은 패턴을 사용할 수 있다.
+
+## 매개변수 전달
+
+다음은 포인트컷 표현식을 사용해서 어드바이스에 매개변수를 전달할 수 있다. 
+
+**this, target, args,@target, @within, @annotation, @args**
+
+```java
+@Before("allMember() && args(arg,..)")
+public void logArgs3(String arg) {
+    log.info("[logArgs3] arg={}", arg);
+}
+```
+포인트컷의 이름과 매개변수의 이름을 맞추어야 한다. `arg` 로 맞추었다.
+
+추가로 타입이 메서드에 지정한 타입으로 제한된다. 
+
+여기서는 메서드의 타입이 `String` 으로 되어 있기 때문에 다음과 같이 정의되는 것으로 이해하면 된다.
+
+`args(arg,..)` `args(String,..)`
+
+## this, target
+
+**정의**
+
+`this` : 스프링 빈 객체(스프링 AOP 프록시)를 대상으로 하는 조인 포인트
+
+`target` : Target 객체(스프링 AOP 프록시가 가리키는 실제 대상)를 대상으로 하는 조인 포인트
+
+**설명**
+
+`this` , `target` 은 다음과 같이 적용 타입 하나를 정확하게 지정해야 한다.
+
+```java
+this(hello.aop.member.MemberService)
+target(hello.aop.member.MemberService) 
+```
+
+`*` 같은 패턴을 사용할 수 없다. 부모 타입을 허용한다.
+
+**this vs target**
+
+단순히 타입 하나를 정하면 되는데, `this` 와 `target` 은 어떤 차이가 있을까?
+
+스프링에서 AOP를 적용하면 실제 `target` 객체 대신에 프록시 객체가 스프링 빈으로 등록된다. 
+
+`this` 는 스프링 빈으로 등록되어 있는 **프록시 객체**를 대상으로 포인트컷을 매칭한다. 
+
+`target` 은 실제 **target 객체**를 대상으로 포인트컷을 매칭한다.
+
+**프록시 생성 방식에 따른 차이**
+
+스프링은 프록시를 생성할 때 JDK 동적 프록시와 CGLIB를 선택할 수 있다. 
+
+둘의 프록시를 생성하는 방식이 다르기 때 문에 차이가 발생한다.
+
+JDK 동적 프록시: 인터페이스가 필수이고, 인터페이스를 구현한 프록시 객체를 생성한다.
+
+CGLIB: 인터페이스가 있어도 구체 클래스를 상속 받아서 프록시 객체를 생성한다.
+
+**JDK 동적 프록시**
+
+
+
+먼저 JDK 동적 프록시를 적용했을 때 `this` , `target` 을 알아보자.
+
+**MemberService 인터페이스 지정** 
+
+`this(hello.aop.member.MemberService)`
+
+proxy 객체를 보고 판단한다. 
+
+`this` 는 부모 타입을 허용하기 때문에 AOP가 적용된다. 
+
+`target(hello.aop.member.MemberService)`
+
+target 객체를 보고 판단한다. 
+
+`target` 은 부모 타입을 허용하기 때문에 AOP가 적용된다.
+
+**MemberServiceImpl 구체 클래스 지정**
+
+`this(hello.aop.member.MemberServiceImpl)` : proxy 객체를 보고 판단한다. 
+
+JDK 동적 프록시로 만들어진 proxy 객체는 `MemberService` 인터페이스를 기반으로 구현된 새로운 클래스다. 
+
+따라서 `MemberServiceImpl` 를 전혀 알지 못하므로 **AOP 적용 대상이 아니다.**
+
+`target(hello.aop.member.MemberServiceImpl)` : target 객체를 보고 판단한다. 
+
+target 객체가 `MemberServiceImpl` 타입이므로 AOP 적용 대상이다.
+
+**CGLIB 프록시**
+
+**MemberService 인터페이스 지정**
+
+`this(hello.aop.member.MemberService)` : proxy 객체를 보고 판단한다. 
+
+`this` 는 부모 타입을 허용하기 때문에 AOP가 적용된다.
+
+`target(hello.aop.member.MemberService)` : target 객체를 보고 판단한다. 
+
+`target` 은 부모 타입을 허용하기 때문에 AOP가 적용된다.
+
+**MemberServiceImpl 구체 클래스 지정**
+
+`this(hello.aop.member.MemberServiceImpl)` : proxy 객체를 보고 판단한다. 
+
+CGLIB로 만들어진proxy 객체는 `MemberServiceImpl` 를 상속 받아서 만들었기 때문에 AOP가 적용된다. 
+
+`this` 가 부모 타입을 허용하기 때문에 포인트컷의 대상이 된다.
+
+`target(hello.aop.member.MemberServiceImpl)` : target 객체를 보고 판단한다. 
+
+target 객체가 `MemberServiceImpl` 타입이므로 AOP 적용 대상이다.
+
+**정리**
+
+프록시를대상으로하는 `this` 의 경우 구체 클래스를 지정하면 프록시 생성 전략에 따라서 다른 결과가 나올 수 있다는 점을 알아두자.
+
+
+
+
+
+
+
+
 
 
 
