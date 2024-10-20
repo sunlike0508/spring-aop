@@ -1191,7 +1191,7 @@ CGLIB: 인터페이스가 있어도 구체 클래스를 상속 받아서 프록�
 
 **JDK 동적 프록시**
 
-
+<img width="684" alt="Screenshot 2024-10-20 at 16 50 58" src="https://github.com/user-attachments/assets/453f0eaa-d78a-47bb-9e79-887f37128c22">
 
 먼저 JDK 동적 프록시를 적용했을 때 `this` , `target` 을 알아보자.
 
@@ -1222,6 +1222,8 @@ JDK 동적 프록시로 만들어진 proxy 객체는 `MemberService` 인터페�
 target 객체가 `MemberServiceImpl` 타입이므로 AOP 적용 대상이다.
 
 **CGLIB 프록시**
+
+<img width="678" alt="Screenshot 2024-10-20 at 16 53 02" src="https://github.com/user-attachments/assets/6d88be44-8d24-4afe-873b-b5bb06fa50f2">
 
 **MemberService 인터페이스 지정**
 
