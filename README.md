@@ -1329,6 +1329,7 @@ hello.aop.internalcall.CallServiceV0     : call external method
 hello.aop.internalcall.CallServiceV0     : call internal method
 ```
 
+<img width="698" alt="Screenshot 2024-10-21 at 21 56 52" src="https://github.com/user-attachments/assets/074c2cb8-5116-4c5f-b655-d2dd564e870d">
 
 
 실행 결과를 보면 `callServiceV0.external()` 을 실행할 때는 프록시를 호출한다. 
@@ -1357,6 +1358,8 @@ hello.aop.internalcall.CallServiceV0     : call internal method
  CallLogAspect     : aop=void hello.aop.internalcall.CallServiceV0.internal()
  CallServiceV0     : call internal
 ```
+
+<img width="688" alt="Screenshot 2024-10-21 at 22 07 14" src="https://github.com/user-attachments/assets/d5b4e8a5-5fd3-46ad-85eb-2b1269a72910">
 
 외부에서 호출하는 경우 프록시를 거치기 때문에 `internal()` 도 `CallLogAspect` 어드바이스가 적용된 것을 확인 할 수 있다.
 
