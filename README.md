@@ -1383,6 +1383,215 @@ hello.aop.internalcall.CallServiceV0     : call internal method
 
 이런 이유로 AspectJ를 직접 사용하는 방법은 실무에서는 거의 사용하지 않는다.
 
+## 프록시와 내부 호출 - 대안1 자기 자신 주입
+
+내부 호출을 해결하는 가장 간단한 방법은 자기 자신을 의존관계 주입 받는 것이다.
+
+```java
+@Component
+public class CallServiceV1 {
+
+    private CallServiceV1 callServiceV1;
+
+    @Autowired
+    public void setCallServiceV1(CallServiceV1 callServiceV1) {
+        this.callServiceV1 = callServiceV1;
+    }
+
+    public void external() {
+        log.info("call external method");
+        callServiceV1.internal();
+    }
+
+
+    public void internal() {
+        log.info("call internal method");
+    }
+}
+```
+
+`callServiceV1` 를 수정자를 통해서 주입 받는 것을 확인할 수 있다. 
+
+스프링에서 AOP가 적용된 대상을 의존관계 주 입 받으면 주입 받은 대상은 실제 자신이 아니라 프록시 객체이다.
+
+`external()` 을 호출하면 `callServiceV1.internal()` 를 호출하게 된다. 
+
+주입받은 `callServiceV1` 은 프록 시이다. 따라서 프록시를 통해서 AOP를 적용할 수 있다.
+
+참고로 이 경우 생성자 주입시 오류가 발생한다. 본인을 생성하면서 주입해야 하기 때문에 순환 사이클이 만들어진다. 
+
+반면에 수정자 주입은 스프링이 생성된 이후에 주입할 수 있기 때문에 오류가 발생하지 않는다.
+
+
+**실행 결과** 
+
+```
+CallLogAspect : aop=void hello.aop.internalcall.CallServiceV1.external()
+CallServiceV2 : call external
+CallLogAspect : aop=void hello.aop.internalcall.CallServiceV1.internal()
+CallServiceV2 : call internal
+```
+
+실행 결과를 보면 이제는 `internal()` 을 호출할 때 자기 자신의 인스턴스를 호출하는 것이 아니라 프록시 인스턴스를 통해서 호출하는 것을 확인할 수 있다. 당연히 AOP도 잘 적용된다.
+
+**주의**
+
+스프링 부트 2.6부터는 순환 참조를 기본적으로 금지하도록 정책이 변경되었다. 
+
+따라서 이번 예제를 스프링 부트 2.6 이상의 버전에서 실행하면 다음과 같은 오류 메시지가 나오면서 정상 실행되지 않는다.
+
+`Error creating bean with name 'callServiceV1': Requested bean is currently in creation: Is there an unresolvable circular reference?`
+
+이 문제를 해결하려면 `application.properties` 에 다음을 추가해야 한다. 
+
+`spring.main.allow-circular-references=true`
+
+## 프록시와 내부 호출 - 대안2 지연 조회
+
+앞서 생성자 주입이 실패하는 이유는 자기 자신을 생성하면서 주입해야 하기 때문이다. 
+
+이 경우 수정자 주입을 사용하거나 지금부터 설명하는 지연 조회를 사용하면 된다.
+
+스프링 빈을 지연해서 조회하면 되는데, `ObjectProvider(Provider)` , `ApplicationContext` 를 사용하면 된다.
+
+```
+@Component
+public class CallServiceV2 {
+
+    //private final ApplicationContext applicationContext;
+    
+    //public CallServiceV2(ApplicationContext applicationContext) {
+    //    this.applicationContext = applicationContext;
+    //}
+
+    
+    private final ObjectProvider<CallServiceV2> callServiceV2ObjectProvider;
+
+
+    public CallServiceV2(ObjectProvider<CallServiceV2> callServiceV2ObjectProvider) {
+        this.callServiceV2ObjectProvider = callServiceV2ObjectProvider;
+    }
+
+    public void external() {
+        log.info("call external method");
+        CallServiceV2 callServiceV2 = callServiceV2ObjectProvider.getObject();
+        callServiceV2.internal();
+    }
+
+    public void internal() {
+        log.info("call internal method");
+    }
+}
+```
+
+ObjectProvider` 는 기본편에서 학습한 내용이다. `ApplicationContext` 는 너무 많은 기능을 제공한다.
+
+`ObjectProvider` 는 객체를 스프링 컨테이너에서 조회하는 것을 스프링 빈 생성 시점이 아니라 실제 객체를 사용하 는 시점으로 지연할 수 있다.
+
+`callServiceProvider.getObject()` 를 호출하는 시점에 스프링 컨테이너에서 빈을 조회한다.
+
+여기서는 자기 자신을 주입 받는 것이 아니기 때문에 순환 사이클이 발생하지 않는다.
+
+## 프록시와 내부 호출 - 대안3 구조 변경
+
+앞선 방법들은 자기 자신을 주입하거나 또는 `Provider` 를 사용해야 하는 것 처럼 조금 어색한 모습을 만들었다.
+
+가장 나은 대안은 내부 호출이 발생하지 않도록 구조를 변경하는 것이다. 실제 이 방법을 가장 권장한다.
+
+```java
+@Component
+public class CallServiceV3 {
+    
+    private final InternalService internalService;
+
+    public CallServiceV3(InternalService internalService) {
+        this.internalService = internalService;
+    }
+
+    public void external() {
+        log.info("call external method");
+        internalService.internal();
+    }
+}
+
+@Service
+public class InternalService {
+
+  public void internal() {
+    log.info("call internal method");
+  }
+}
+```
+
+내부호출 자체가 사라지고, `callService` `internalService` 를 호출하는 구조로 변경되었다.덕분에 자연스럽게 AOP가 적용된다.
+
+여기서 구조를 변경한다는 것은 이렇게 단순하게 분리하는 것 뿐만 아니라 다양한 방법들이 있을 수 있다.
+
+예를 들어서 다음과 같이 클라이언트에서 둘다 호출하는 것이다. 
+
+`클라이언트` `external()`
+
+`클라이언트` `internal()`
+
+물론 이 경우 `external()` 에서 `internal()` 을 내부 호출하지 않도록 코드를 변경해야 한다. 
+
+그리고 클라이언트가 `external()` , `internal()` 을 모두 호출하도록 구조를 변경하면 된다. (물론 가능한 경우에 한해서)
+
+**참고**
+
+AOP는 주로 트랜잭션 적용이나 주요 컴포넌트의 로그 출력 기능에 사용된다. 
+
+쉽게 이야기해서 인터페이스에 메서드가 나올 정도의 규모에 AOP를 적용하는 것이 적당하다. 
+
+더 풀어서 이야기하면 AOP는 `public` 메서드에만 적용한다. 
+
+`private` 메서드처럼 작은 단위에는 AOP를 적용하지 않는다.
+
+AOP 적용을 위해 `private` 메서드를 외부 클래스로 변경하고 `public` 으로 변경하는 일은 거의 없다.
+
+그러나 위 예제와 같이 `public` 메서드에서 `public` 메서드를 내부 호출하는 경우에는 문제가 발생한다. 
+
+실무에서 꼭 한번은 만나는 문제이기에 이번 강의에서 다루었다.
+
+AOP가 잘 적용되지 않으면 내부 호출을 의심해보자.
+
+
+## 프록시 기술과 한계 - 타입 캐스팅
+
+JDK 동적 프록시와 CGLIB를 사용해서 AOP 프록시를 만드는 방법에는 각각 장단점이 있다. 
+
+JDK 동적 프록시는 인터페이스가 필수이고, 인터페이스를 기반으로 프록시를 생성한다. 
+
+CGLIB는 구체 클래스를 기반으로 프록시를 생성한다.
+
+물론 인터페이스가 없고 구체 클래스만 있는 경우에는 CGLIB를 사용해야 한다. 
+
+그런데 인터페이스가 있는 경우에는 JDK 동적 프록시나 CGLIB 둘중에 하나를 선택할 수 있다.
+
+스프링이 프록시를 만들때 제공하는 `ProxyFactory` 에 `proxyTargetClass` 옵션에 따라 둘중 하나를 선택해서 프록시를 만들 수 있다.
+
+`proxyTargetClass=false` JDK 동적 프록시를 사용해서 인터페이스 기반 프록시 생성
+
+`proxyTargetClass=true` CGLIB를 사용해서 구체 클래스 기반 프록시 생성
+
+참고로 옵션과 무관하게 인터페이스가 없으면 JDK 동적 프록시를 적용할 수 없으므로 CGLIB를 사용한다.
+
+**JDK 동적 프록시 한계**
+
+인터페이스 기반으로 프록시를 생성하는 JDK 동적 프록시는 구체 클래스로 타입 캐스팅이 불가능한 한계가 있다. 
+
+어떤 한계인지 코드를 통해서 알아보자.
+
+
+
+
+
+
+
+
+
+
+
 
 
 

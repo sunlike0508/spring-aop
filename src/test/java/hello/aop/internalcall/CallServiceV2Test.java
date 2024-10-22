@@ -1,7 +1,6 @@
 package hello.aop.internalcall;
 
 import hello.aop.internalcall.aop.CallLogAspect;
-import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -10,22 +9,18 @@ import org.springframework.context.annotation.Import;
 
 @SpringBootTest
 @Import(CallLogAspect.class)
-class CallServiceV0Test {
+class CallServiceV2Test {
 
     @Autowired
-    private CallServiceV0 callServiceV0;
-
-    @Autowired
-    private CallServiceV1 callServiceV1;
+    private CallServiceV2 callServiceV2;
 
     @Test
     void external() {
-        //callServiceV0.external();
-        callServiceV1.external();
+        callServiceV2.external();
     }
 
     @Test
     void internal() {
-        callServiceV0.internal();
+        callServiceV2.internal();
     }
 }
