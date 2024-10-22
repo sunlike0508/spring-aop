@@ -1668,6 +1668,170 @@ CGLIB 프록시는 대상 객체인 `MemberServiceImpl` 로 캐스팅 할 수 �
 그런데 프록시를 캐스팅 할 일이 많지 않을 것 같은데 왜 이 이야기를 하는 것일까? 진짜 문제는 의존관계 주입시에 발생한다.
 
 
+## 록시 기술과 한계 - 의존관계 주입
+
+JDK 동적 프록시를 사용하면서 의존관계 주입을 할 때 어떤 문제가 발생하는지 코드로 알아보자.
+
+```java
+@Aspect
+public class ProxyDIAspect {
+
+    @Before("execution(* hello.aop..*.*(..))")
+    public void before(JoinPoint joinPoint) {
+        log.info("before method invoked {}", joinPoint.getSignature());
+    }
+}
+
+@SpringBootTest(properties = {"spring.aop.proxy-target-class=false"})
+@Import(ProxyDIAspect.class)
+public class ProxyDITest {
+
+  @Autowired
+  private MemberService memberService;
+
+  @Autowired
+  private MemberServiceImpl memberServiceImpl;
+
+  @Test
+  void go() {
+    log.info("memberService class= {}", memberService.getClass());
+    log.info("memberServiceImpl class= {}", memberServiceImpl.getClass());
+
+    memberServiceImpl.hello("hello");
+  }
+}
+```
+```shell
+Bean named 'memberServiceImpl' is expected to be of type 'hello.aop.member.MemberServiceImpl' but was actually of type 'jdk.proxy3.$Proxy56'org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'hello.aop.proxyvs.ProxyDITest': Unsatisfied dependency expressed through field 'memberServiceImpl': Bean named 'memberServiceImpl' is expected to be of type 'hello.aop.member.MemberServiceImpl' but was actually of type 'jdk.proxy3.$Proxy56'
+```
+
+### JDK 동적 프록시를 구체 클래스 타입에 주입
+
+
+`@Autowired MemberService memberService` : 이 부분은 문제가 없다. 
+
+JDK Proxy는 `MemberService` 인터페이스를 기반으로 만들어진다. 
+
+따라서 해당 타입으로 캐스팅 할 수 있다. 
+
+`MemberService = JDK Proxy` 가 성립한다.
+
+`@Autowired MemberServiceImpl memberServiceImpl` : 문제는 여기다. 
+
+JDK Proxy는 `MemberService` 인터페이스를 기반으로 만들어진다. 
+
+따라서 `MemberServiceImpl` 타입이 뭔지 전혀 모른다. 그래서 해당 타입에 주입할 수 없다.
+
+`MemberServiceImpl = JDK Proxy` 가 성립하지 않는다.
+
+### CGLIB 프록시를 구체 클래스 타입에 주입
+
+`@Autowired MemberService memberService` : CGLIB Proxy는 `MemberServiceImpl` 구체 클래스 를 기반으로 만들어진다. 
+
+`MemberServiceImpl` 은 `MemberService` 인터페이스를 구현했기 때문에 해당 타 입으로 캐스팅 할 수 있다.
+
+`MemberService = CGLIB Proxy` 가 성립한다.
+
+`@Autowired MemberServiceImpl memberServiceImpl` :CGLIBProxy는 `MemberServiceImpl ` 구체 클래스를 기반으로 만들어진다.
+
+따라서 해당 타입으로 캐스팅할 수 있다.
+
+`MemberServiceImpl = CGLIB Proxy` 가 성립한다.
+
+**정리**
+
+JDK 동적 프록시는 대상 객체인 `MemberServiceImpl` 타입에 의존관계를 주입할 수 없다. 
+
+CGLIB 프록시는 대상 객체인 `MemberServiceImpl` 타입에 의존관계 주입을 할 수 있다.
+
+지금까지 JDK 동적 프록시가 가지는 한계점을 알아보았다. 
+
+실제로 개발할 때는 인터페이스가 있으면 인터페이스를 기반으로 의존관계 주입을 받는 것이 맞다.
+
+DI의 장점이 무엇인가? DI 받는 클라이언트 코드의 변경 없이 구현 클래스를 변경할 수 있는 것이다. 
+
+이렇게 하려면 인 터페이스를 기반으로 의존관계를 주입 받아야 한다. 
+
+`MemberServiceImpl` 타입으로 의존관계 주입을 받는 것처럼 구현 클래스에 의존관계를 주입하면 향후 구현 클래스를 변경할 때 의존관계 주입을 받는 클라이언트의 코드도 함께 변경해야 한다.
+
+따라서 올바르게 잘 설계된 애플리케이션이라면 이런 문제가 자주 발생하지는 않는다.
+
+그럼에도 불구하고 테스트, 또는 여러가지 이유로 AOP 프록시가 적용된 구체 클래스를 직접 의존관계 주입 받아야 하는 경우가 있을 수 있다. 
+
+이때는 CGLIB를 통해 구체 클래스 기반으로 AOP 프록시를 적용하면 된다.
+
+여기까지 듣고보면 CGLIB를 사용하는 것이 좋아보인다. 
+
+CGLIB를 사용하면 사실 이런 고민 자체를 하지 않아도 된다. 다음 시간에는 CGLIB의 단점을 알아보자.
+
+## 프록시 기술과 한계 - CGLIB
+
+스프링에서 CGLIB는 구체 클래스를 상속 받아서 AOP 프록시를 생성할 때 사용한다.
+
+CGLIB는 구체 클래스를 상속 받기 때문에 다음과 같은 문제가 있다.
+
+**CGLIB 구체 클래스 기반 프록시 문제점** 
+
+대상 클래스에 기본 생성자 필수 생성자 2번 호출 문제
+
+final 키워드 클래스, 메서드 사용 불가
+
+
+**대상 클래스에 기본 생성자 필수**
+
+CGLIB는 구체 클래스를 상속 받는다. 
+
+자바 언어에서 상속을 받으면 자식 클래스의 생성자를 호출할 때 자식 클래스의 생성자에서 부모 클래스의 생성자도 호출해야 한다. 
+
+(이 부분이 생략되어 있다면 자식 클래스의 생성자 첫줄에 부모 클래스의 기본 생성자를 호출하는 `super()` 가 자동으로 들어간다.) 이 부분은 자바 문법 규약이다.
+
+CGLIB를 사용할 때 CGLIB가 만드는 프록시의 생성자는 우리가 호출하는 것이 아니다. 
+
+CGLIB 프록시는 대상 클래스 를 상속 받고, 생성자에서 대상 클래스의 기본 생성자를 호출한다. 
+
+따라서 대상 클래스에 기본 생성자를 만들어야 한다. 
+
+(기본 생성자는 파라미터가 하나도 없는 생성자를 뜻한다. 생성자가 하나도 없으면 자동으로 만들어진다.)
+
+**생성자 2번 호출 문제**
+
+CGLIB는 구체 클래스를 상속 받는다. 
+
+자바 언어에서 상속을 받으면 자식 클래스의 생성자를 호출할 때 부모 클래스의 생성자도 호출해야 한다. 그런데 왜 2번일까?
+
+1. 실제 target의 객체를 생성할 때
+2. 프록시 객체를 생성할때 부모 클래스의 생성자 호출
+
+
+
+**final 키워드 클래스, 메서드 사용 불가**
+
+final 키워드가 클래스에 있으면 상속이 불가능하고, 메서드에 있으면 오버라이딩이 불가능하다. 
+
+CGLIB는 상속을 기반으로 하기 때문에 두 경우 프록시가 생성되지 않거나 정상 동작하지 않는다.
+
+프레임워크 같은 개발이 아니라 일반적인 웹 애플리케이션을 개발할 때는 `final` 키워드를 잘 사용하지 않는다. 
+
+따라서 이 부분이 특별히 문제가 되지는 않는다.
+
+**정리**
+
+JDK 동적 프록시는 대상 클래스 타입으로 주입할 때 문제가 있고, CGLIB는 대상 클래스에 기본 생성자 필수, 생성자 2번 호출 문제가 있다.
+
+그렇다면 스프링은 어떤 방법을 권장할까?
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
