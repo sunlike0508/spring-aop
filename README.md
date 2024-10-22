@@ -1776,7 +1776,6 @@ CGLIB는 구체 클래스를 상속 받기 때문에 다음과 같은 문제가 
 
 final 키워드 클래스, 메서드 사용 불가
 
-
 **대상 클래스에 기본 생성자 필수**
 
 CGLIB는 구체 클래스를 상속 받는다. 
@@ -1802,7 +1801,7 @@ CGLIB는 구체 클래스를 상속 받는다.
 1. 실제 target의 객체를 생성할 때
 2. 프록시 객체를 생성할때 부모 클래스의 생성자 호출
 
-
+<img width="696" alt="Screenshot 2024-10-22 at 22 54 11" src="https://github.com/user-attachments/assets/babb944f-d13a-408e-b69d-426f15e95240">
 
 **final 키워드 클래스, 메서드 사용 불가**
 
