@@ -1523,6 +1523,8 @@ public class InternalService {
 }
 ```
 
+<img width="689" alt="Screenshot 2024-10-22 at 22 19 24" src="https://github.com/user-attachments/assets/154c69bb-1c12-4fbb-bd98-c2627be36237">
+
 내부호출 자체가 사라지고, `callService` `internalService` 를 호출하는 구조로 변경되었다.덕분에 자연스럽게 AOP가 적용된다.
 
 여기서 구조를 변경한다는 것은 이렇게 단순하게 분리하는 것 뿐만 아니라 다양한 방법들이 있을 수 있다.
