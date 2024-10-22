@@ -1597,6 +1597,7 @@ void jdkProxy() {
 }
 ```
 
+<img width="693" alt="Screenshot 2024-10-22 at 22 31 09" src="https://github.com/user-attachments/assets/3f16b788-78ab-41cb-803b-e13525575d14">
 
 **jdkProxy() 테스트**
 
@@ -1608,15 +1609,7 @@ void jdkProxy() {
 
 여기서 `memberServiceProxy` 가 바로 `JDK Proxy` 이다.
 
-
-
-
-
-
-
-
-
-
+<img width="679" alt="Screenshot 2024-10-22 at 22 31 15" src="https://github.com/user-attachments/assets/3ccfdd68-ee9c-4a25-929a-78f071888b1e">
 
 그런데 여기에서 JDK Proxy를 대상 클래스인 `MemberServiceImpl` 타입으로 캐스팅 하려고 하니 예외가 발생한다.
 
@@ -1645,19 +1638,34 @@ void jdkProxy2() {
 }
 ```
 
+<img width="696" alt="Screenshot 2024-10-22 at 22 34 19" src="https://github.com/user-attachments/assets/bbbd68b0-bfd7-4d3e-b64a-4af91611ae64">
+
 **cglibProxy() 테스트**
-`MemberServiceImpl` 타입을 기반으로 CGLIB 프록시를 생성했다. `MemberServiceImpl` 타입은 `MemberService` 인터페이스를 구현했다. CGLIB는 구체 클래스를 기반으로 프록시를 생성한다. 따라서 CGLIB는 `MemberServiceImpl` 구체 클래스를 기반으로 프록시를 생성한다. 이 프록시를 CGLIB Proxy라고 하자. 여기서 `memberServiceProxy` 가 바로 CGLIB Proxy이다.
 
+`MemberServiceImpl` 타입을 기반으로 CGLIB 프록시를 생성했다.
 
+`MemberServiceImpl` 타입은 `MemberService` 인터페이스를 구현했다. 
 
+CGLIB는 구체 클래스를 기반으로 프록시를 생성한다. 따라서 CGLIB는 `MemberServiceImpl` 구체 클래스를 기반으로 프록시를 생성한다. 
+
+이 프록시를 CGLIB Proxy라고 하자. 여기서 `memberServiceProxy` 가 바로 CGLIB Proxy이다.
+
+<img width="697" alt="Screenshot 2024-10-22 at 22 35 48" src="https://github.com/user-attachments/assets/70996a72-1c2b-4719-a282-21e82ce6b6e2">
 
 여기에서 CGLIB Proxy를 대상 클래스인 `MemberServiceImpl` 타입으로 캐스팅하면 성공한다.
-왜냐하면 CGLIB는 구체 클래스를 기반으로 프록시를 생성하기 때문이다. CGLIB Proxy는 `MemberServiceImpl` 구체 클래스를 기반으로 생성된 프록시이다. 따라서 CGLIB Proxy는 `MemberServiceImpl` 은 물론이고,
-`MemberServiceImpl` 이 구현한 인터페이스인 `MemberService` 로도 캐스팅 할 수 있다.
+
+왜냐하면 CGLIB는 구체 클래스를 기반으로 프록시를 생성하기 때문이다. 
+
+CGLIB Proxy는 `MemberServiceImpl` 구체 클래스를 기반으로 생성된 프록시이다. 
+
+따라서 CGLIB Proxy는 `MemberServiceImpl` 은 물론이고, `MemberServiceImpl` 이 구현한 인터페이스인 `MemberService` 로도 캐스팅 할 수 있다.
 
 **정리**
-JDK 동적 프록시는 대상 객체인 `MemberServiceImpl` 로 캐스팅 할 수 없다. CGLIB 프록시는 대상 객체인 `MemberServiceImpl` 로 캐스팅 할 수 있다.
-그런데 프록시를 캐스팅 할 일이 많지 않을 것 같은데 왜 이 이야기를 하는 것일까? 진짜 문제는 의존관계 주입시에 발 생한다.
+JDK 동적 프록시는 대상 객체인 `MemberServiceImpl` 로 캐스팅 할 수 없다. 
+
+CGLIB 프록시는 대상 객체인 `MemberServiceImpl` 로 캐스팅 할 수 있다.
+
+그런데 프록시를 캐스팅 할 일이 많지 않을 것 같은데 왜 이 이야기를 하는 것일까? 진짜 문제는 의존관계 주입시에 발생한다.
 
 
 
